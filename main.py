@@ -3,6 +3,8 @@ from pydantic import BaseModel
 from datetime import datetime
 import psycopg
 
+
+from app.repositories import user_repository, user_service
 from database import get_connection
 app = FastAPI()
 
@@ -54,11 +56,7 @@ def create_user(user: UserCreate, conn = Depends(get_connection)):
 @app.get("/users", response_model = list[User])
 def get_users(conn = Depends(get_connection)):
 
-    cursor = conn.cursor()
-
-    cursor.execute("select * from users")
-
-    rows = cursor.fetchall()
+    rows = user_repository.get_users(conn)
 
     users = []
 
@@ -71,8 +69,6 @@ def get_users(conn = Depends(get_connection)):
         )
         users.append(user)
 
-    cursor.close()
-
     return users
 
 
@@ -80,22 +76,13 @@ def get_users(conn = Depends(get_connection)):
 @app.get("/users/{user_id}", response_model = User)
 def get_user(user_id: int, conn = Depends(get_connection)):
 
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        SELECT id, name, email, created_at
-        FROM users
-        WHERE id = %s
-    """, (user_id,))
-
-    row = cursor.fetchone()
+    row = user_service.get_user(conn, user_id)
 
     if row is None:
         raise HTTPException(
             status_code = 404,
             detail = "user not found"
         )
-    cursor.close()
 
     return User(
         id=row[0],
@@ -121,7 +108,6 @@ def delete_user(user_id: int, conn = Depends(get_connection)):
     if deleted_user is None:
         conn.rollback()
         cursor.close()
-        conn.close()
 
         raise HTTPException(
             status_code=404,
@@ -153,7 +139,6 @@ def update_user(user_id: int, user: UserUpdate, conn = Depends(get_connection)):
     if row is None:
         conn.rollback()
         cursor.close()
-        conn.close()
 
         raise HTTPException(
             status_code=404,
