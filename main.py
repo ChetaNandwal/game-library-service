@@ -69,7 +69,7 @@ def get_users(conn = Depends(get_connection)):
         )
         users.append(user)
 
-    return users
+    return users 
 
 
 
